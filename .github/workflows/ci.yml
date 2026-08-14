@@ -38,6 +38,9 @@ jobs:
       - name: Run tests
         run: cargo test --locked
 
+      - name: Test release workflow contract
+        run: ruby scripts/test_release_workflow.rb
+
       - name: Package Plugin on Unix
         if: runner.os != 'Windows'
         shell: bash
