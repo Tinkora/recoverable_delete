@@ -1,6 +1,6 @@
 #![cfg(unix)]
 
-use std::io::Write;
+use std::io::{ErrorKind, Write};
 use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
 
@@ -19,12 +19,18 @@ fn run_dispatch(input: &str, binary: Option<&str>, plugin_root: &str) -> Output 
     }
 
     let mut child = command.spawn().expect("dispatch hook should start");
-    child
+    let write_result = child
         .stdin
         .as_mut()
         .expect("stdin should be piped")
-        .write_all(input.as_bytes())
-        .expect("hook input should be written");
+        .write_all(input.as_bytes());
+    if let Err(error) = write_result {
+        assert_eq!(
+            error.kind(),
+            ErrorKind::BrokenPipe,
+            "hook input should be written"
+        );
+    }
     child
         .wait_with_output()
         .expect("dispatch hook should finish")
