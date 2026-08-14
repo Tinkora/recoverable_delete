@@ -1,0 +1,26 @@
+{
+  "name": "recoverable-delete",
+  "version": "0.1.0",
+  "description": "Blocks common permanent deletion paths and guides Codex to the operating-system Trash.",
+  "author": {
+    "name": "Tinkora",
+    "url": "https://github.com/tinkeragora"
+  },
+  "homepage": "https://github.com/tinkeragora/recoverable_delete",
+  "repository": "https://github.com/tinkeragora/recoverable_delete",
+  "license": "MIT",
+  "keywords": ["codex", "hooks", "trash", "recycle-bin", "data-safety"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Recoverable Delete",
+    "shortDescription": "Move deletions to Trash instead of erasing files.",
+    "longDescription": "Adds a PreToolUse guardrail for common permanent deletion commands and an Agent Skill for recoverable cleanup workflows.",
+    "developerName": "Tinkora",
+    "category": "Productivity",
+    "capabilities": ["Lifecycle hooks", "File safety"],
+    "defaultPrompt": [
+      "Remove these files through the operating-system Trash.",
+      "Audit this cleanup command for permanent deletion risk."
+    ]
+  }
+}

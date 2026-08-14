@@ -1,0 +1,4 @@
+interface:
+  display_name: "Recoverable Delete"
+  short_description: "Move deletions to Trash instead of erasing files"
+  default_prompt: "Use $recoverable-delete to remove these files without permanent data loss."

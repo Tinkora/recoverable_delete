@@ -1,0 +1,15 @@
+[package]
+name = "recoverable-delete"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Codex hook that blocks permanent file deletion paths"
+license = "MIT"
+repository = "https://github.com/Tinkora/recoverable_delete"
+homepage = "https://github.com/Tinkora/recoverable_delete"
+keywords = ["codex", "hooks", "trash", "safety"]
+categories = ["command-line-utilities", "development-tools"]
+
+[dependencies]
+serde_json = "1.0"
+shell-words = "1.1.1"

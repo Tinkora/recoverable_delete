@@ -1,0 +1,19 @@
+{
+  "description": "Block permanent deletion and require recoverable operating-system Trash operations.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(Bash|apply_patch|Edit|Write)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/bin/sh \"${PLUGIN_ROOT}/hooks/dispatch_hook.sh\"",
+            "commandWindows": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"& \\\"$env:PLUGIN_ROOT\\hooks\\dispatch_hook.ps1\\\"\"",
+            "timeout": 5,
+            "statusMessage": "Checking for permanent file deletion"
+          }
+        ]
+      }
+    ]
+  }
+}
