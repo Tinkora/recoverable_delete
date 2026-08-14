@@ -150,7 +150,7 @@ def create_tar_gz(archive: Path, files: list[tuple[Path, str]]) -> None:
             with tarfile.open(fileobj=compressed, mode="w") as output:
                 for path, name in files:
                     info = output.gettarinfo(str(path), arcname=name)
-                    # 固定发布元数据，使相同输入生成逐字节一致的归档。
+                    # Fix release metadata so identical inputs produce byte-identical archives.
                     info.uid = 0
                     info.gid = 0
                     info.uname = ""
