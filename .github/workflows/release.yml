@@ -9,18 +9,27 @@ permissions:
 
 jobs:
   package:
-    name: Package (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    name: Package (${{ matrix.platform }} ${{ matrix.architecture }})
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - runner: ubuntu-24.04-arm
             platform: linux
-          - os: macos-latest
+            architecture: arm64
+            archive_format: tar.gz
+            binary_name: recoverable-delete
+          - runner: macos-15
             platform: macos
-          - os: windows-latest
+            architecture: arm64
+            archive_format: tar.gz
+            binary_name: recoverable-delete
+          - runner: windows-2025
             platform: windows
+            architecture: x86_64
+            archive_format: zip
+            binary_name: recoverable-delete.exe
 
     steps:
       - uses: actions/checkout@v4
@@ -39,26 +48,38 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: |
+          version="${GITHUB_REF_NAME#v}"
+          release_output="$RUNNER_TEMP/release"
+          archive="$release_output/recoverable-delete-${{ matrix.platform }}-${{ matrix.architecture }}.${{ matrix.archive_format }}"
           RECOVERABLE_DELETE_BIN="$PWD/target/release/recoverable-delete" \
             sh scripts/package_plugin.sh "$RUNNER_TEMP/package"
-          archive="recoverable-delete-${{ matrix.platform }}-${RUNNER_ARCH}.tar.gz"
-          tar -C "$RUNNER_TEMP/package" -czf "$RUNNER_TEMP/$archive" recoverable-delete
-          echo "ARCHIVE_PATH=$RUNNER_TEMP/$archive" >> "$GITHUB_ENV"
+          python3 scripts/build_release_artifact.py \
+            --package-root "$RUNNER_TEMP/package/recoverable-delete" \
+            --archive "$archive" \
+            --expected-version "$version" \
+            --binary-name "${{ matrix.binary_name }}"
+          echo "RELEASE_OUTPUT=$release_output" >> "$GITHUB_ENV"
 
       - name: Assemble Windows Plugin archive
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          $version = $env:GITHUB_REF_NAME.Substring(1)
+          $releaseOutput = "$env:RUNNER_TEMP\release"
+          $archive = "$releaseOutput\recoverable-delete-${{ matrix.platform }}-${{ matrix.architecture }}.${{ matrix.archive_format }}"
           $env:RECOVERABLE_DELETE_BIN = "$PWD\target\release\recoverable-delete.exe"
           ./scripts/package_plugin.ps1 -OutputRoot "$env:RUNNER_TEMP\package"
-          $archive = "recoverable-delete-${{ matrix.platform }}-$env:RUNNER_ARCH.zip"
-          Compress-Archive -Path "$env:RUNNER_TEMP\package\recoverable-delete" -DestinationPath "$env:RUNNER_TEMP\$archive"
-          "ARCHIVE_PATH=$env:RUNNER_TEMP\$archive" | Out-File -FilePath $env:GITHUB_ENV -Append
+          python scripts/build_release_artifact.py `
+            --package-root "$env:RUNNER_TEMP\package\recoverable-delete" `
+            --archive "$archive" `
+            --expected-version "$version" `
+            --binary-name "${{ matrix.binary_name }}"
+          "RELEASE_OUTPUT=$releaseOutput" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - uses: actions/upload-artifact@v4
         with:
-          name: recoverable-delete-${{ matrix.platform }}-${{ runner.arch }}
-          path: ${{ env.ARCHIVE_PATH }}
+          name: recoverable-delete-${{ matrix.platform }}-${{ matrix.architecture }}
+          path: ${{ env.RELEASE_OUTPUT }}/recoverable-delete-*
           if-no-files-found: error
 
   publish:
@@ -70,6 +91,10 @@ jobs:
         with:
           path: release_artifacts
           merge-multiple: true
+
+      - name: Combine SHA-256 checksums
+        shell: bash
+        run: cat release_artifacts/*.sha256 | sort > release_artifacts/SHA256SUMS.txt
 
       - uses: softprops/action-gh-release@v2
         with:
