@@ -27,8 +27,6 @@ jobs:
         with:
           components: clippy,rustfmt
 
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
-
       - name: Check formatting
         run: cargo fmt --all -- --check
 
@@ -37,9 +35,6 @@ jobs:
 
       - name: Run tests
         run: cargo test --locked
-
-      - name: Test release workflow contract
-        run: ruby scripts/test_release_workflow.rb
 
       - name: Package Plugin on Unix
         if: runner.os != 'Windows'
@@ -68,6 +63,9 @@ jobs:
           persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@bc540ba06a4ccee415bb241490e0b25ee8e7d315 # 1.85.0
+
+      - name: Test release workflow contract
+        run: ruby scripts/test_release_workflow.rb
 
       - name: Install cargo-audit compatible with Rust 1.85
         run: cargo install cargo-audit --version 0.22.1 --locked
