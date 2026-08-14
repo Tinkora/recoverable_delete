@@ -204,21 +204,22 @@ def write_metadata(
 ) -> None:
     checksum_path, contents_path = output_paths(archive)
     digest = sha256(archive)
-    checksum_path.write_text(f"{digest}  {archive.name}\n", encoding="utf-8")
-    contents_path.write_text(
-        "\n".join(
-            [
-                f"version: {expected_version}",
-                f"marketplace: {marketplace_name}",
-                f"archive: {archive.name}",
-                f"sha256: {digest}",
-                "files:",
-                *entries,
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
+    with checksum_path.open("w", encoding="utf-8", newline="\n") as checksum:
+        checksum.write(f"{digest}  {archive.name}\n")
+    with contents_path.open("w", encoding="utf-8", newline="\n") as contents:
+        contents.write(
+            "\n".join(
+                [
+                    f"version: {expected_version}",
+                    f"marketplace: {marketplace_name}",
+                    f"archive: {archive.name}",
+                    f"sha256: {digest}",
+                    "files:",
+                    *entries,
+                    "",
+                ]
+            )
+        )
 
 
 def main() -> None:
