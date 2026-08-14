@@ -1,5 +1,11 @@
 # Recoverable Delete
 
+<div align="center">
+  <a href="https://ko-fi.com/tinkora" target="_blank" rel="noopener noreferrer">
+    <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="在 Ko-fi 上支持 Tinkora" width="520">
+  </a>
+</div>
+
 Recoverable Delete 是一个 Codex Plugin：它会阻止常见的永久删除路径，并引导 Agent 把明确的文件或目录移入操作系统回收站。
 
 [English](README.md)
