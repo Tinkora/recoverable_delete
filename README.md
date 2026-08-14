@@ -32,7 +32,19 @@ cargo test --locked
 cargo clippy --all-targets --locked -- -D warnings
 ```
 
-Build the host policy binary and place it in a local Plugin copy under `bin/recoverable-delete` (`bin/recoverable-delete.exe` on Windows). The Hook intentionally blocks matched tools when that binary is absent.
+Build a host-specific Plugin directory:
+
+```sh
+sh scripts/package_plugin.sh
+```
+
+On Windows:
+
+```powershell
+./scripts/package_plugin.ps1
+```
+
+Both commands refuse to overwrite an existing package. Move the old package to Trash or the Recycle Bin before rebuilding. The Hook intentionally blocks matched tools when its packaged policy binary is absent.
 
 To test the repository marketplace with Codex:
 
@@ -42,6 +54,8 @@ codex plugin add recoverable-delete@tinkora
 ```
 
 Start a new Codex task, open `/hooks`, and review and trust the Plugin Hook before testing it. Hook trust is intentionally not granted by installation.
+
+Pushing a `v*` tag runs the release workflow, builds native Linux, macOS, and Windows Plugin archives, and attaches them to a GitHub release.
 
 ## Documentation
 

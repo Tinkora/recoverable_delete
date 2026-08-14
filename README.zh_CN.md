@@ -32,7 +32,19 @@ cargo test --locked
 cargo clippy --all-targets --locked -- -D warnings
 ```
 
-本地测试时，需要先编译当前平台策略二进制文件，并将其放入 Plugin 副本的 `bin/recoverable-delete`；Windows 文件名为 `bin/recoverable-delete.exe`。缺少二进制文件时，Hook 会有意阻止所有已匹配工具调用。
+生成当前平台的 Plugin 目录：
+
+```sh
+sh scripts/package_plugin.sh
+```
+
+Windows 使用：
+
+```powershell
+./scripts/package_plugin.ps1
+```
+
+两个脚本都拒绝覆盖已有发布目录；重新打包前，需要先把旧目录移入废纸篓或回收站。缺少已打包策略二进制文件时，Hook 会有意阻止所有已匹配工具调用。
 
 将仓库 Marketplace 加入 Codex：
 
@@ -42,6 +54,8 @@ codex plugin add recoverable-delete@tinkora
 ```
 
 然后新建 Codex 任务，通过 `/hooks` 审查并信任 Plugin Hook。安装 Plugin 不会自动授予 Hook 信任，这是 Codex 的安全设计。
+
+推送 `v*` tag 后，Release workflow 会分别构建 Linux、macOS、Windows 原生 Plugin 压缩包，并附加到 GitHub Release。
 
 ## 文档
 

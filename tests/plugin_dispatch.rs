@@ -1,3 +1,5 @@
+#![cfg(unix)]
+
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};

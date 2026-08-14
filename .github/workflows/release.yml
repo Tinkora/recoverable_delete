@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: macos-latest
+            platform: macos
+          - os: windows-latest
+            platform: windows
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@1.85.0
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run tests
+        run: cargo test --locked
+
+      - name: Build release binary
+        run: cargo build --release --locked
+
+      - name: Assemble Unix Plugin archive
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          RECOVERABLE_DELETE_BIN="$PWD/target/release/recoverable-delete" \
+            sh scripts/package_plugin.sh "$RUNNER_TEMP/package"
+          archive="recoverable-delete-${{ matrix.platform }}-${RUNNER_ARCH}.tar.gz"
+          tar -C "$RUNNER_TEMP/package" -czf "$RUNNER_TEMP/$archive" recoverable-delete
+          echo "ARCHIVE_PATH=$RUNNER_TEMP/$archive" >> "$GITHUB_ENV"
+
+      - name: Assemble Windows Plugin archive
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:RECOVERABLE_DELETE_BIN = "$PWD\target\release\recoverable-delete.exe"
+          ./scripts/package_plugin.ps1 -OutputRoot "$env:RUNNER_TEMP\package"
+          $archive = "recoverable-delete-${{ matrix.platform }}-$env:RUNNER_ARCH.zip"
+          Compress-Archive -Path "$env:RUNNER_TEMP\package\recoverable-delete" -DestinationPath "$env:RUNNER_TEMP\$archive"
+          "ARCHIVE_PATH=$env:RUNNER_TEMP\$archive" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recoverable-delete-${{ matrix.platform }}-${{ runner.arch }}
+          path: ${{ env.ARCHIVE_PATH }}
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release_artifacts
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release_artifacts/*
+          generate_release_notes: true
