@@ -26,3 +26,9 @@ cargo clippy --all-targets --locked -- -D warnings
 - Keep the repository and owned script names underscore-separated where platform conventions permit.
 - Validate `.codex-plugin/plugin.json`, `hooks/hooks.json`, and Skill frontmatter before packaging.
 - A distributable Plugin archive must include the platform policy binary under `bin/`.
+
+## Repository conventions
+
+- Write public code comments in English.
+- Write commit subjects and bodies in English and follow Conventional Commits.
+  This repository rule overrides global commit-language preferences.
