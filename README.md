@@ -44,6 +44,16 @@ On Windows:
 ./scripts/package_plugin.ps1
 ```
 
+Run the packaged Windows policy binary and PowerShell Hook dispatcher end to end:
+
+```powershell
+cargo build --release --locked
+$outputRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("recoverable_delete_verify_" + [guid]::NewGuid())
+./scripts/verify_windows_plugin.ps1 `
+  -PolicyBinary .\target\release\recoverable-delete.exe `
+  -OutputRoot $outputRoot
+```
+
 Both commands refuse to overwrite an existing package. Move the old package to Trash or the Recycle Bin before rebuilding. The Hook intentionally blocks matched tools when its packaged policy binary is absent.
 
 To test the repository marketplace with Codex:

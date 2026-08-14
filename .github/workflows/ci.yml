@@ -41,10 +41,18 @@ jobs:
         shell: bash
         run: sh scripts/package_plugin.sh "$RUNNER_TEMP/package"
 
-      - name: Package Plugin on Windows
+      - name: Build release binary on Windows
         if: runner.os == 'Windows'
         shell: pwsh
-        run: ./scripts/package_plugin.ps1 -OutputRoot "$env:RUNNER_TEMP\package"
+        run: cargo build --release --locked
+
+      - name: Verify packaged Plugin on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: >-
+          ./scripts/verify_windows_plugin.ps1
+          -PolicyBinary "$PWD\target\release\recoverable-delete.exe"
+          -OutputRoot "$env:RUNNER_TEMP\package"
 
   audit:
     name: Dependency audit

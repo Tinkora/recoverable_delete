@@ -44,6 +44,16 @@ Windows 使用：
 ./scripts/package_plugin.ps1
 ```
 
+端到端运行打包后的 Windows 策略二进制文件和 PowerShell Hook dispatcher：
+
+```powershell
+cargo build --release --locked
+$outputRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("recoverable_delete_verify_" + [guid]::NewGuid())
+./scripts/verify_windows_plugin.ps1 `
+  -PolicyBinary .\target\release\recoverable-delete.exe `
+  -OutputRoot $outputRoot
+```
+
 两个脚本都拒绝覆盖已有发布目录；重新打包前，需要先把旧目录移入废纸篓或回收站。缺少已打包策略二进制文件时，Hook 会有意阻止所有已匹配工具调用。
 
 将仓库 Marketplace 加入 Codex：
