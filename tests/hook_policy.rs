@@ -155,3 +155,17 @@ fn denies_invalid_macos_trash_option_terminator() {
         r#"{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"/usr/bin/trash -- build/cache"}}"#,
     );
 }
+
+#[test]
+fn denies_shell_command_substitution_that_contains_permanent_deletion() {
+    for command in [
+        "echo $(rm -rf -- build/cache)",
+        "echo `rm -rf -- build/cache`",
+        "BUILD_KIND=$(rm -rf -- build/cache) echo cleanup",
+        "pwsh -Command \"Write-Output $(Remove-Item -Recurse build\\cache)\"",
+    ] {
+        assert_denied(&format!(
+            r#"{{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{{"command":{command:?}}}}}"#
+        ));
+    }
+}

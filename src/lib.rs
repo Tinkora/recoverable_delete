@@ -89,12 +89,44 @@ fn deny(reason: &str) -> Value {
 }
 
 fn is_destructive_shell_command(command: &str) -> bool {
+    if contains_unsupported_command_substitution(command) {
+        return true;
+    }
+
     split_shell_segments(command).into_iter().any(|segment| {
         let Ok(words) = shell_words::split(&segment) else {
             return true;
         };
         classify_words(&words)
     })
+}
+
+fn contains_unsupported_command_substitution(command: &str) -> bool {
+    let mut single_quoted = false;
+    let mut double_quoted = false;
+    let mut escaped = false;
+    let mut characters = command.chars().peekable();
+
+    while let Some(character) = characters.next() {
+        if escaped {
+            escaped = false;
+            continue;
+        }
+        if character == '\\' && !single_quoted {
+            escaped = true;
+            continue;
+        }
+
+        match character {
+            '\'' if !double_quoted => single_quoted = !single_quoted,
+            '"' if !single_quoted => double_quoted = !double_quoted,
+            '`' if !single_quoted => return true,
+            '$' if !single_quoted && characters.peek() == Some(&'(') => return true,
+            _ => {}
+        }
+    }
+
+    false
 }
 
 fn split_shell_segments(command: &str) -> Vec<String> {

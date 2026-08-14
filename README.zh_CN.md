@@ -17,6 +17,7 @@ Recoverable Delete 是一个 Codex Plugin：它会阻止常见的永久删除路
 
 - 阻止 `rm`、`rmdir`、`unlink`、`find -delete`、`git clean`、`rsync --delete`、PowerShell `Remove-Item`、Windows `del` 等常见物理删除命令。
 - 识别嵌套 shell、`xargs` 命令、常见命令包装器、绝对可执行文件路径、Python/Node/Ruby 内联删除 API，以及 `apply_patch` 的 `Delete File`。
+- 对无法安全分析的 `$()` 和反引号命令替换直接拒绝，采用 fail-closed 策略，不让不透明的嵌套命令通过。
 - 放行普通命令和已知的回收站命令。
 - Hook 输入损坏或发布包缺少策略二进制文件时 fail closed。
 

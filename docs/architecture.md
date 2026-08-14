@@ -21,7 +21,7 @@ Codex discovers `plugins/recoverable-delete/hooks/hooks.json` through the offici
 
 ## Policy boundary
 
-The evaluator parses common shell structure without executing the command. It recognizes direct deletion programs, selected nested shells and wrappers, `find` deletion modes, `git clean`, `rsync --delete`, nested `xargs` commands, destructive inline Python/Node/Ruby APIs, and `apply_patch Delete File`.
+The evaluator parses common shell structure without executing the command. It recognizes direct deletion programs, selected nested shells and wrappers, `find` deletion modes, `git clean`, `rsync --delete`, nested `xargs` commands, destructive inline Python/Node/Ruby APIs, and `apply_patch Delete File`. Shell command substitution (`$()` and backticks) is rejected when it cannot be safely analyzed, so opaque nested execution fails closed.
 
 It deliberately does not claim complete semantic analysis of arbitrary scripts or binaries. Codex documentation notes that specialized tool paths can opt out of local function Hooks. Therefore:
 
