@@ -56,6 +56,12 @@ $outputRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("recoverable_delete_v
 
 Both commands refuse to overwrite an existing package. Move the old package to Trash or the Recycle Bin before rebuilding. The Hook intentionally blocks matched tools when its packaged policy binary is absent.
 
+## Install a release
+
+Each platform archive extracts to a complete local Marketplace root named `recoverable_delete`. Verify its SHA-256 file, extract it into a durable directory, add that directory with `codex plugin marketplace add`, and install `recoverable-delete@tinkora`.
+
+See the [v0.1.0 release and installation guide](docs/release_v0_1_0.md) for platform commands, Hook trust, recovery, upgrades, uninstallation, and architecture limits.
+
 To test the repository marketplace with Codex:
 
 ```sh
@@ -65,12 +71,13 @@ codex plugin add recoverable-delete@tinkora
 
 Start a new Codex task, open `/hooks`, and review and trust the Plugin Hook before testing it. Hook trust is intentionally not granted by installation.
 
-Pushing a `v*` tag runs the release workflow, builds native Linux, macOS, and Windows Plugin archives, and attaches them to a GitHub release.
+Pushing a `v*` tag runs the release workflow, builds native Linux ARM64, macOS ARM64, and Windows x64 Marketplace archives, and attaches each archive, checksum, and content manifest to a GitHub release.
 
 ## Documentation
 
 - [Existing solution review](docs/existing_solutions.md)
 - [Architecture and security boundary](docs/architecture.md)
+- [v0.1.0 release and installation](docs/release_v0_1_0.md)
 - [Official Codex Hooks documentation](https://learn.chatgpt.com/docs/hooks)
 - [Official Plugin packaging documentation](https://developers.openai.com/plugins/build/plugins)
 

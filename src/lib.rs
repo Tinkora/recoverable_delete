@@ -191,6 +191,7 @@ fn classify_words_segment(words: &[String]) -> bool {
             arg.eq_ignore_ascii_case("--delete")
                 || arg.to_ascii_lowercase().starts_with("--delete-")
         }),
+        "trash" => args.iter().any(|arg| arg == "--"),
         "xargs" => xargs_command(args).is_some_and(classify_words),
         "rtk" => classify_words(args.strip_prefix(&["proxy".to_owned()]).unwrap_or(args)),
         "python" | "python3" | "py" => inline_code(args, &["-c"]).is_some_and(|code| {

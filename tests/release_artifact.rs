@@ -18,6 +18,16 @@ fn prepare_package(case_name: &str) -> PathBuf {
         .join(case_name)
         .join("recoverable-delete");
     let plugin_source = repository.join("plugins/recoverable-delete");
+    let marketplace = package
+        .parent()
+        .unwrap()
+        .join(".agents/plugins/marketplace.json");
+    fs::create_dir_all(marketplace.parent().unwrap()).unwrap();
+    fs::copy(
+        repository.join(".agents/plugins/marketplace.json"),
+        marketplace,
+    )
+    .unwrap();
 
     for relative_path in [
         ".codex-plugin/plugin.json",
@@ -54,6 +64,13 @@ fn run_release_tool(package: &Path, archive: &Path) -> std::process::Output {
         .arg(env!("CARGO_PKG_VERSION"))
         .arg("--binary-name")
         .arg(binary_name())
+        .arg("--marketplace-manifest")
+        .arg(
+            package
+                .parent()
+                .unwrap()
+                .join(".agents/plugins/marketplace.json"),
+        )
         .output()
         .expect("release tool should start")
 }
@@ -88,8 +105,15 @@ fn creates_deterministic_archive_checksum_and_content_manifest() {
 
     let contents = fs::read_to_string(format!("{}.contents.txt", first_archive.display())).unwrap();
     assert!(contents.contains("version: 0.1.0\n"));
-    assert!(contents.contains("recoverable-delete/.codex-plugin/plugin.json\n"));
-    assert!(contents.contains(&format!("recoverable-delete/bin/{}\n", binary_name())));
+    assert!(contents.contains("recoverable_delete/.agents/plugins/marketplace.json\n"));
+    assert!(
+        contents
+            .contains("recoverable_delete/plugins/recoverable-delete/.codex-plugin/plugin.json\n")
+    );
+    assert!(contents.contains(&format!(
+        "recoverable_delete/plugins/recoverable-delete/bin/{}\n",
+        binary_name()
+    )));
 }
 
 #[test]
@@ -119,5 +143,47 @@ fn rejects_plugin_version_mismatch() {
 
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("version mismatch"));
+    assert!(!archive.exists());
+}
+
+#[test]
+fn rejects_mismatched_marketplace_source() {
+    let package = prepare_package("marketplace_mismatch");
+    let marketplace_path = package
+        .parent()
+        .unwrap()
+        .join(".agents/plugins/marketplace.json");
+    let marketplace = fs::read_to_string(&marketplace_path)
+        .unwrap()
+        .replace("./plugins/recoverable-delete", "./plugins/other-plugin");
+    fs::write(marketplace_path, marketplace).unwrap();
+    let archive = package.parent().unwrap().join("marketplace_mismatch.zip");
+
+    let output = run_release_tool(&package, &archive);
+
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("marketplace source mismatch"));
+    assert!(!archive.exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn rejects_symlinked_marketplace_manifest() {
+    use std::os::unix::fs::symlink;
+
+    let package = prepare_package("marketplace_symlink");
+    let marketplace_path = package
+        .parent()
+        .unwrap()
+        .join(".agents/plugins/marketplace.json");
+    let real_marketplace = marketplace_path.with_file_name("marketplace.real.json");
+    fs::rename(&marketplace_path, &real_marketplace).unwrap();
+    symlink(&real_marketplace, &marketplace_path).unwrap();
+    let archive = package.parent().unwrap().join("marketplace_symlink.tar.gz");
+
+    let output = run_release_tool(&package, &archive);
+
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("marketplace symlinks"));
     assert!(!archive.exists());
 }

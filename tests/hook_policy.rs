@@ -142,9 +142,16 @@ fn allows_apply_patch_without_file_deletion() {
 #[test]
 fn allows_recoverable_trash_commands() {
     let output = run_hook(
-        r#"{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"/usr/bin/trash -- build/cache"}}"#,
+        r#"{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"/usr/bin/trash build/cache"}}"#,
     );
 
     assert!(output.status.success());
     assert_eq!(String::from_utf8(output.stdout).unwrap(), "");
+}
+
+#[test]
+fn denies_invalid_macos_trash_option_terminator() {
+    assert_denied(
+        r#"{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"/usr/bin/trash -- build/cache"}}"#,
+    );
 }

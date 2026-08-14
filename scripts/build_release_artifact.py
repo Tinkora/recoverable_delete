@@ -12,6 +12,7 @@ import zipfile
 
 
 PLUGIN_NAME = "recoverable-delete"
+ARCHIVE_ROOT = "recoverable_delete"
 PLUGIN_FILES = {
     ".codex-plugin/plugin.json",
     "hooks/dispatch_hook.ps1",
@@ -30,6 +31,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--archive", type=Path, required=True)
     parser.add_argument("--expected-version", required=True)
     parser.add_argument("--binary-name", required=True)
+    parser.add_argument(
+        "--marketplace-manifest",
+        type=Path,
+        default=(
+            Path(__file__).resolve().parent.parent
+            / ".agents/plugins/marketplace.json"
+        ),
+    )
     parser.add_argument(
         "--cargo-manifest",
         type=Path,
@@ -107,18 +116,39 @@ def validate_package(
     return [package_root / relative for relative in sorted(expected_files)]
 
 
+def validate_marketplace(marketplace_manifest: Path) -> str:
+    if marketplace_manifest.is_symlink():
+        raise ValueError("marketplace symlinks are not allowed")
+    if not marketplace_manifest.is_file():
+        raise ValueError(f"marketplace manifest not found: {marketplace_manifest}")
+    marketplace = read_json(marketplace_manifest)
+    marketplace_name = marketplace.get("name")
+    if not isinstance(marketplace_name, str) or not marketplace_name:
+        raise ValueError("marketplace name is missing")
+
+    plugins = marketplace.get("plugins")
+    if not isinstance(plugins, list) or len(plugins) != 1:
+        raise ValueError("release marketplace must contain exactly one Plugin")
+    plugin = plugins[0]
+    if not isinstance(plugin, dict) or plugin.get("name") != PLUGIN_NAME:
+        raise ValueError("marketplace Plugin name mismatch")
+    source = plugin.get("source")
+    if not isinstance(source, dict) or source.get("path") != f"./plugins/{PLUGIN_NAME}":
+        raise ValueError("marketplace source mismatch")
+
+    return marketplace_name
+
+
 def archive_mode(path: Path) -> int:
     executable = path.stat().st_mode & 0o111
     return 0o755 if executable else 0o644
 
 
-def create_tar_gz(archive: Path, package_root: Path, files: list[Path]) -> None:
+def create_tar_gz(archive: Path, files: list[tuple[Path, str]]) -> None:
     with archive.open("xb") as raw_archive:
         with gzip.GzipFile(fileobj=raw_archive, mode="wb", filename="", mtime=0) as compressed:
             with tarfile.open(fileobj=compressed, mode="w") as output:
-                for path in files:
-                    relative = path.relative_to(package_root)
-                    name = (Path(PLUGIN_NAME) / relative).as_posix()
+                for path, name in files:
                     info = output.gettarinfo(str(path), arcname=name)
                     # 固定发布元数据，使相同输入生成逐字节一致的归档。
                     info.uid = 0
@@ -131,13 +161,11 @@ def create_tar_gz(archive: Path, package_root: Path, files: list[Path]) -> None:
                         output.addfile(info, source)
 
 
-def create_zip(archive: Path, package_root: Path, files: list[Path]) -> None:
+def create_zip(archive: Path, files: list[tuple[Path, str]]) -> None:
     with zipfile.ZipFile(
         archive, mode="x", compression=zipfile.ZIP_DEFLATED, compresslevel=9
     ) as output:
-        for path in files:
-            relative = path.relative_to(package_root)
-            name = (Path(PLUGIN_NAME) / relative).as_posix()
+        for path, name in files:
             info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
             info.create_system = 3
@@ -145,12 +173,12 @@ def create_zip(archive: Path, package_root: Path, files: list[Path]) -> None:
             output.writestr(info, path.read_bytes(), compress_type=zipfile.ZIP_DEFLATED)
 
 
-def create_archive(archive: Path, package_root: Path, files: list[Path]) -> None:
+def create_archive(archive: Path, files: list[tuple[Path, str]]) -> None:
     archive.parent.mkdir(parents=True, exist_ok=True)
     if archive.name.endswith(".tar.gz"):
-        create_tar_gz(archive, package_root, files)
+        create_tar_gz(archive, files)
     elif archive.suffix == ".zip":
-        create_zip(archive, package_root, files)
+        create_zip(archive, files)
     else:
         raise ValueError("archive must end with .tar.gz or .zip")
 
@@ -171,7 +199,9 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def write_metadata(archive: Path, expected_version: str, entries: list[str]) -> None:
+def write_metadata(
+    archive: Path, expected_version: str, marketplace_name: str, entries: list[str]
+) -> None:
     checksum_path, contents_path = output_paths(archive)
     digest = sha256(archive)
     checksum_path.write_text(f"{digest}  {archive.name}\n", encoding="utf-8")
@@ -179,6 +209,7 @@ def write_metadata(archive: Path, expected_version: str, entries: list[str]) -> 
         "\n".join(
             [
                 f"version: {expected_version}",
+                f"marketplace: {marketplace_name}",
                 f"archive: {archive.name}",
                 f"sha256: {digest}",
                 "files:",
@@ -193,21 +224,42 @@ def write_metadata(archive: Path, expected_version: str, entries: list[str]) -> 
 def main() -> None:
     args = parse_args()
     validate_output_paths(args.archive)
-    files = validate_package(
-        args.package_root.resolve(),
+    package_root = args.package_root.resolve()
+    plugin_files = validate_package(
+        package_root,
         args.binary_name,
         args.expected_version,
         args.cargo_manifest.resolve(),
     )
-    expected_entries = sorted(
-        (Path(PLUGIN_NAME) / path.relative_to(args.package_root.resolve())).as_posix()
-        for path in files
-    )
-    create_archive(args.archive, args.package_root.resolve(), files)
+    marketplace_manifest = args.marketplace_manifest.absolute()
+    marketplace_name = validate_marketplace(marketplace_manifest)
+    files = [
+        (
+            marketplace_manifest,
+            f"{ARCHIVE_ROOT}/.agents/plugins/marketplace.json",
+        ),
+        *[
+            (
+                path,
+                (
+                    Path(ARCHIVE_ROOT)
+                    / "plugins"
+                    / PLUGIN_NAME
+                    / path.relative_to(package_root)
+                ).as_posix(),
+            )
+            for path in plugin_files
+        ],
+    ]
+    files.sort(key=lambda item: item[1])
+    expected_entries = [name for _, name in files]
+    create_archive(args.archive, files)
     actual_entries = archive_entries(args.archive)
     if actual_entries != expected_entries:
         raise ValueError("archive content does not match the validated package")
-    write_metadata(args.archive, args.expected_version, actual_entries)
+    write_metadata(
+        args.archive, args.expected_version, marketplace_name, actual_entries
+    )
     print(args.archive)
 
 

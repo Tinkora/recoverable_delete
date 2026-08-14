@@ -32,15 +32,18 @@ It deliberately does not claim complete semantic analysis of arbitrary scripts o
 
 ## Packaging plan
 
-Platform-specific Plugin archives will contain the same manifest, Hook configuration, and Skill plus one binary:
+Platform-specific archives are complete local Marketplace roots. This matches the official Codex installation model while keeping the native policy binary inside the Plugin:
 
 ```text
-recoverable-delete/
-  .codex-plugin/plugin.json
-  hooks/hooks.json
-  hooks/dispatch_hook.sh or dispatch_hook.ps1
-  skills/recoverable-delete/
-  bin/recoverable-delete or recoverable-delete.exe
+recoverable_delete/
+  .agents/plugins/marketplace.json
+  plugins/recoverable-delete/
+    .codex-plugin/plugin.json
+    hooks/hooks.json
+    hooks/dispatch_hook.sh
+    hooks/dispatch_hook.ps1
+    skills/recoverable-delete/
+    bin/recoverable-delete or recoverable-delete.exe
 ```
 
-The repository source intentionally does not commit compiled binaries. CI release jobs should compile and assemble the appropriate archive for macOS, Linux, and Windows.
+The repository source intentionally does not commit compiled binaries. CI release jobs compile the appropriate binary, reject unexpected package files, verify Cargo and Plugin versions, and publish a deterministic archive with its SHA-256 checksum and content manifest.

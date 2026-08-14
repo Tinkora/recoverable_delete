@@ -56,6 +56,12 @@ $outputRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("recoverable_delete_v
 
 两个脚本都拒绝覆盖已有发布目录；重新打包前，需要先把旧目录移入废纸篓或回收站。缺少已打包策略二进制文件时，Hook 会有意阻止所有已匹配工具调用。
 
+## 安装发布版本
+
+每个平台归档解压后都是一个名为 `recoverable_delete` 的完整本地 Marketplace 根目录。先验证 SHA-256，再解压到稳定目录，通过 `codex plugin marketplace add` 添加该目录，然后安装 `recoverable-delete@tinkora`。
+
+平台命令、Hook 信任、恢复、升级、卸载和架构限制见 [v0.1.0 发布与安装指南](docs/release_v0_1_0.zh_CN.md)。
+
 将仓库 Marketplace 加入 Codex：
 
 ```sh
@@ -65,12 +71,13 @@ codex plugin add recoverable-delete@tinkora
 
 然后新建 Codex 任务，通过 `/hooks` 审查并信任 Plugin Hook。安装 Plugin 不会自动授予 Hook 信任，这是 Codex 的安全设计。
 
-推送 `v*` tag 后，Release workflow 会分别构建 Linux、macOS、Windows 原生 Plugin 压缩包，并附加到 GitHub Release。
+推送 `v*` tag 后，Release workflow 会分别构建 Linux ARM64、macOS ARM64、Windows x64 原生 Marketplace 压缩包，并把归档、校验和及内容清单附加到 GitHub Release。
 
 ## 文档
 
 - [同类方案调研](docs/existing_solutions.md)
 - [架构与安全边界](docs/architecture.md)
+- [v0.1.0 发布与安装](docs/release_v0_1_0.zh_CN.md)
 - [Codex Hooks 官方文档](https://learn.chatgpt.com/docs/hooks)
 - [Plugin 打包官方文档](https://developers.openai.com/plugins/build/plugins)
 

@@ -16,7 +16,7 @@ Move deletion targets to the operating system Trash or Recycle Bin. Never substi
 
 | Platform | Preferred operation |
 | --- | --- |
-| macOS | `/usr/bin/trash -- <exact paths>` |
+| macOS | `/usr/bin/trash <exact paths>`; do not add `--`, which this system command treats as another path |
 | Linux | `gio trash -- <exact paths>`; otherwise `trash-put -- <exact paths>` |
 | Windows | Send exact paths to the Recycle Bin with a trusted tool such as `ai-trash` or the `Microsoft.VisualBasic.FileIO` PowerShell API |
 
@@ -33,7 +33,7 @@ The Hook is a guardrail, not an operating-system security boundary. It recognize
 ```sh
 # Inspect first, then move only the resolved target.
 ls -ld -- build/cache
-/usr/bin/trash -- build/cache
+/usr/bin/trash build/cache
 test ! -e build/cache
 ```
 
