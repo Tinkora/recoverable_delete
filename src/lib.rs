@@ -164,6 +164,10 @@ fn classify_words_segment(words: &[String]) -> bool {
         }
     }
 
+    if program == "eval" {
+        return is_destructive_shell_command(&args.join(" "));
+    }
+
     if matches!(
         program.as_str(),
         "rm" | "rmdir" | "unlink" | "del" | "erase" | "rd" | "remove-item"
@@ -172,7 +176,7 @@ fn classify_words_segment(words: &[String]) -> bool {
     }
 
     match program.as_str() {
-        "busybox" => args.first().is_some_and(|arg| is_delete_program(arg)),
+        "busybox" => classify_words(args),
         "find" => {
             args.iter().any(|arg| arg.eq_ignore_ascii_case("-delete"))
                 || args.iter().enumerate().any(|(index, arg)| {
@@ -183,8 +187,51 @@ fn classify_words_segment(words: &[String]) -> bool {
                 })
         }
         "git" => git_subcommand(args).is_some_and(|subcommand| subcommand == "clean"),
-        "xargs" => args.iter().any(|arg| is_delete_program(arg)),
+        "rsync" => args.iter().any(|arg| {
+            arg.eq_ignore_ascii_case("--delete")
+                || arg.to_ascii_lowercase().starts_with("--delete-")
+        }),
+        "xargs" => xargs_command(args).is_some_and(classify_words),
         "rtk" => classify_words(args.strip_prefix(&["proxy".to_owned()]).unwrap_or(args)),
+        "python" | "python3" | "py" => inline_code(args, &["-c"]).is_some_and(|code| {
+            contains_destructive_api(
+                &code,
+                &[
+                    "os.remove(",
+                    "os.unlink(",
+                    "os.rmdir(",
+                    "shutil.rmtree(",
+                    ".unlink(",
+                    ".rmdir(",
+                ],
+            )
+        }),
+        "node" | "nodejs" => inline_code(args, &["-e", "--eval"]).is_some_and(|code| {
+            contains_destructive_api(
+                &code,
+                &[
+                    ".unlink(",
+                    ".unlinksync(",
+                    ".rm(",
+                    ".rmsync(",
+                    ".rmdir(",
+                    ".rmdirsync(",
+                ],
+            )
+        }),
+        "ruby" => inline_code(args, &["-e"]).is_some_and(|code| {
+            contains_destructive_api(
+                &code,
+                &[
+                    "file.delete(",
+                    "file.unlink(",
+                    "dir.rmdir(",
+                    "fileutils.rm",
+                    ".unlink(",
+                    ".rmdir(",
+                ],
+            )
+        }),
         _ => false,
     }
 }
@@ -237,7 +284,21 @@ fn command_and_args(words: &[String]) -> Option<(&str, &[String])> {
                     }
                     let takes_value = matches!(
                         arg.as_str(),
-                        "-C" | "-D" | "-g" | "-h" | "-p" | "-R" | "-T" | "-u"
+                        "-C" | "-D"
+                            | "-g"
+                            | "-h"
+                            | "-p"
+                            | "-R"
+                            | "-T"
+                            | "-u"
+                            | "--chdir"
+                            | "--close-from"
+                            | "--group"
+                            | "--host"
+                            | "--prompt"
+                            | "--role"
+                            | "--type"
+                            | "--user"
                     );
                     index += if takes_value { 2 } else { 1 };
                 }
@@ -248,12 +309,90 @@ fn command_and_args(words: &[String]) -> Option<(&str, &[String])> {
                     index += 1;
                 }
             }
+            "nice" => {
+                index += 1;
+                while let Some(arg) = words.get(index) {
+                    if arg == "--" {
+                        index += 1;
+                        break;
+                    }
+                    if arg == "-n" || arg == "--adjustment" {
+                        index += 2;
+                        continue;
+                    }
+                    if !arg.starts_with('-') {
+                        break;
+                    }
+                    index += 1;
+                }
+            }
+            "timeout" => {
+                index += 1;
+                while let Some(arg) = words.get(index) {
+                    if arg == "--" {
+                        index += 1;
+                        break;
+                    }
+                    if matches!(arg.as_str(), "-k" | "--kill-after" | "-s" | "--signal") {
+                        index += 2;
+                        continue;
+                    }
+                    if !arg.starts_with('-') {
+                        break;
+                    }
+                    index += 1;
+                }
+                if words.get(index).is_some() {
+                    index += 1;
+                }
+            }
+            "time" => {
+                index += 1;
+                while let Some(arg) = words.get(index) {
+                    if arg == "--" {
+                        index += 1;
+                        break;
+                    }
+                    if matches!(arg.as_str(), "-f" | "--format" | "-o" | "--output") {
+                        index += 2;
+                        continue;
+                    }
+                    if !arg.starts_with('-') {
+                        break;
+                    }
+                    index += 1;
+                }
+            }
+            "setsid" => {
+                index += 1;
+                while let Some(arg) = words.get(index) {
+                    if arg == "--" {
+                        index += 1;
+                        break;
+                    }
+                    if !arg.starts_with('-') {
+                        break;
+                    }
+                    index += 1;
+                }
+            }
             "env" => {
                 index += 1;
-                while words
-                    .get(index)
-                    .is_some_and(|arg| arg.starts_with('-') || arg.contains('='))
-                {
+                while let Some(arg) = words.get(index) {
+                    if arg == "--" {
+                        index += 1;
+                        break;
+                    }
+                    if matches!(
+                        arg.as_str(),
+                        "-C" | "--chdir" | "-S" | "--split-string" | "-u" | "--unset"
+                    ) {
+                        index += 2;
+                        continue;
+                    }
+                    if !arg.starts_with('-') && !arg.contains('=') {
+                        break;
+                    }
                     index += 1;
                 }
             }
@@ -262,6 +401,53 @@ fn command_and_args(words: &[String]) -> Option<(&str, &[String])> {
     }
 
     None
+}
+
+fn xargs_command(args: &[String]) -> Option<&[String]> {
+    let mut index = 0;
+
+    while let Some(arg) = args.get(index) {
+        if arg == "--" {
+            return args.get(index + 1..);
+        }
+        if !arg.starts_with('-') || arg == "-" {
+            return args.get(index..);
+        }
+
+        let consumes_next = matches!(
+            arg.as_str(),
+            "-a" | "--arg-file"
+                | "-d"
+                | "--delimiter"
+                | "-E"
+                | "--eof"
+                | "-I"
+                | "--replace"
+                | "-L"
+                | "--max-lines"
+                | "-n"
+                | "--max-args"
+                | "-P"
+                | "--max-procs"
+                | "-s"
+                | "--max-chars"
+        );
+        index += if consumes_next { 2 } else { 1 };
+    }
+
+    None
+}
+
+fn inline_code(args: &[String], markers: &[&str]) -> Option<String> {
+    let marker_index = args
+        .iter()
+        .position(|arg| markers.iter().any(|marker| arg == marker))?;
+    Some(args.get(marker_index + 1..)?.join(" "))
+}
+
+fn contains_destructive_api(code: &str, patterns: &[&str]) -> bool {
+    let code = code.to_ascii_lowercase();
+    patterns.iter().any(|pattern| code.contains(pattern))
 }
 
 fn executable_name(program: &str) -> String {

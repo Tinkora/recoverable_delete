@@ -60,11 +60,25 @@ fn denies_permanent_shell_deletion_commands() {
         "cd build; find . -name '*.tmp' -delete",
         "printf '%s\\0' build/cache.tmp | xargs -0 rm",
         "env BUILD_KIND=test /bin/rm -rf build/cache",
+        "env -u BUILD_KIND /bin/rm -rf build/cache",
+        "env -C build /bin/rm -rf cache",
         "command -- /bin/rm -rf build/cache",
         "sudo -u builder -- /bin/rm -rf build/cache",
+        "sudo --user builder -- /bin/rm -rf build/cache",
         "nohup /bin/rm -rf build/cache",
         "busybox rm -rf build/cache",
         "rtk proxy rm -rf build/cache",
+        "rsync -a --delete source/ destination/",
+        "eval 'rm -rf -- build/cache'",
+        "timeout 5 /bin/rm -rf build/cache",
+        "nice -n 5 /bin/rm -rf build/cache",
+        "time /bin/rm -rf build/cache",
+        "time -f '%E' /bin/rm -rf build/cache",
+        "setsid /bin/rm -rf build/cache",
+        "printf '%s\\0' build/cache.tmp | xargs -0 sh -c 'rm -f -- \"$@\"' sh",
+        "python3 -c 'import shutil; shutil.rmtree(\"build/cache\")'",
+        "node -e 'require(\"fs\").rmSync(\"build/cache\", { recursive: true })'",
+        "ruby -e 'require \"fileutils\"; FileUtils.rm_rf(\"build/cache\")'",
     ] {
         assert_denied(&format!(
             r#"{{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{{"command":{command:?}}}}}"#
@@ -74,12 +88,20 @@ fn denies_permanent_shell_deletion_commands() {
 
 #[test]
 fn allows_destructive_words_when_they_are_only_echoed_text() {
-    let output = run_hook(
-        r#"{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo 'rm -rf build/cache'"}}"#,
-    );
+    for command in [
+        "echo 'rm -rf build/cache'",
+        "echo 'rsync --delete source destination'",
+        "python3 -c 'print(\"cleanup complete\")'",
+        "node -e 'console.log(\"cleanup complete\")'",
+        "ruby -e 'puts \"cleanup complete\"'",
+    ] {
+        let output = run_hook(&format!(
+            r#"{{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{{"command":{command:?}}}}}"#,
+        ));
 
-    assert!(output.status.success());
-    assert_eq!(String::from_utf8(output.stdout).unwrap(), "");
+        assert!(output.status.success());
+        assert_eq!(String::from_utf8(output.stdout).unwrap(), "");
+    }
 }
 
 #[test]

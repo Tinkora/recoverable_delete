@@ -15,8 +15,8 @@ Neither is a Codex Plugin with a `PreToolUse` Hook that observes both shell call
 
 ## Current behavior
 
-- Denies common permanent deletion commands including `rm`, `rmdir`, `unlink`, `find -delete`, `git clean`, `xargs rm`, PowerShell `Remove-Item`, and Windows `del`.
-- Detects nested shell execution, common command wrappers, absolute executable paths, and `apply_patch` `Delete File` operations.
+- Denies common permanent deletion commands including `rm`, `rmdir`, `unlink`, `find -delete`, `git clean`, `rsync --delete`, PowerShell `Remove-Item`, and Windows `del`.
+- Detects nested shell execution, `xargs` commands, common command wrappers, absolute executable paths, destructive inline Python/Node/Ruby APIs, and `apply_patch` `Delete File` operations.
 - Allows normal commands and known Trash operations.
 - Fails closed on malformed Hook input or a missing packaged policy binary.
 
