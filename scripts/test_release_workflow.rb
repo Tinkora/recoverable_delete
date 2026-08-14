@@ -13,12 +13,15 @@ required_fragments = [
   "actions/attest-build-provenance@",
   "actions/attest@",
   "sbom-path:",
-  "name: Recoverable Delete ${{ env.RELEASE_TAG }}"
+  "name=\"Recoverable Delete ${RELEASE_TAG}\"",
+  "release_id=\"$(gh api"
 ]
 
 required_fragments.each do |fragment|
   abort("release workflow is missing #{fragment.inspect}") unless workflow.include?(fragment)
 end
+
+abort("release workflow must publish through gh, not a release action") if workflow.include?("softprops/action-gh-release")
 
 action_references = workflow.scan(/^\s*uses:\s*([^@\s]+)@([^\s#]+)/).map do |name, revision|
   [name, revision]
