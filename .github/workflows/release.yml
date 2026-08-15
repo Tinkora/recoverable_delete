@@ -156,14 +156,39 @@ jobs:
           export SOURCE_DATE_EPOCH
           cargo +1.85.0 cyclonedx --format json --describe crate --target all --spec-version 1.5
           mkdir -p dist
-          mv recoverable-delete.cdx.json "dist/recoverable-delete-${RELEASE_TAG}.cdx.json"
+          old_ref="$(jq -er '.metadata.component["bom-ref"]' recoverable-delete.cdx.json)"
+          normalized_ref="pkg:cargo/recoverable-delete@${RELEASE_TAG#v}"
+          serial_number="$(python3 -c \
+            'import sys, uuid; print(f"urn:uuid:{uuid.uuid5(uuid.NAMESPACE_URL, sys.argv[1])}")' \
+            "https://github.com/${GITHUB_REPOSITORY}@${GITHUB_SHA}#${RELEASE_TAG}")"
+          jq \
+            --arg old_ref "${old_ref}" \
+            --arg normalized_ref "${normalized_ref}" \
+            --arg serial_number "${serial_number}" '
+            .serialNumber = $serial_number
+            | .metadata.component["bom-ref"] = $normalized_ref
+            | .metadata.component.purl = $normalized_ref
+            | .metadata.component.components |= map(
+                (.purl | capture("#(?<path>.+)$").path) as $path
+                | .["bom-ref"] = ($normalized_ref + "#" + $path)
+                | .purl = ($normalized_ref + "#" + $path)
+              )
+            | .dependencies |= map(
+                if .ref == $old_ref then .ref = $normalized_ref else . end
+              )
+          ' recoverable-delete.cdx.json > "dist/recoverable-delete-${RELEASE_TAG}.cdx.json"
           jq -e --arg version "${RELEASE_TAG#v}" '
             .bomFormat == "CycloneDX"
             and .specVersion == "1.5"
             and .metadata.component.name == "recoverable-delete"
             and .metadata.component.version == $version
             and (.components | length > 0)
+            and (.dependencies | length > 0)
           ' "dist/recoverable-delete-${RELEASE_TAG}.cdx.json" >/dev/null
+          if grep -Eq 'path\+file:|download_url=file:' "dist/recoverable-delete-${RELEASE_TAG}.cdx.json"; then
+            echo "SBOM contains a checkout-local package reference" >&2
+            exit 1
+          fi
           sha256sum "dist/recoverable-delete-${RELEASE_TAG}.cdx.json" \
             > "dist/recoverable-delete-${RELEASE_TAG}.cdx.json.sha256"
 
