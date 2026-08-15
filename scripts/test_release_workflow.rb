@@ -13,6 +13,8 @@ required_fragments = [
   'normalized_ref="pkg:cargo/recoverable-delete@${RELEASE_TAG#v}"',
   ".metadata.component[\"bom-ref\"] = $normalized_ref",
   "if grep -Eq 'path\\+file:|download_url=file:'",
+  "cd dist",
+  "sha256sum \"recoverable-delete-${RELEASE_TAG}.cdx.json\"",
   "actions/attest-build-provenance@",
   "actions/attest@",
   "sbom-path:",

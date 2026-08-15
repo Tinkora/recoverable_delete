@@ -189,8 +189,11 @@ jobs:
             echo "SBOM contains a checkout-local package reference" >&2
             exit 1
           fi
-          sha256sum "dist/recoverable-delete-${RELEASE_TAG}.cdx.json" \
-            > "dist/recoverable-delete-${RELEASE_TAG}.cdx.json.sha256"
+          (
+            cd dist
+            sha256sum "recoverable-delete-${RELEASE_TAG}.cdx.json" \
+              > "recoverable-delete-${RELEASE_TAG}.cdx.json.sha256"
+          )
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
